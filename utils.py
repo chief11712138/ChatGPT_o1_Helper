@@ -1,6 +1,7 @@
 import os
 import json
 from datetime import datetime
+from charset_normalizer import detect
 
 
 def load_config(file_path="config.json"):
@@ -77,33 +78,132 @@ def format_markdown(messages, model, token_usage, cost):
 
 
 def calculate_total_cost(log_directory="chat_logs"):
-    """统计所有日志文件中总消耗的钱。
+    """统计所有日志文件中总消耗的钱和 Token 数量。
 
     Args:
         log_directory (str): 保存日志文件的目录路径。
 
     Returns:
-        float: 总消耗的钱。
+        dict: 包含总成本和 Token 消耗统计的字典。
     """
+    # 确保 log_directory 是程序所在目录下的子文件夹
+    log_directory = os.path.join(os.path.dirname(__file__), log_directory)
+
     total_cost = 0.0
+    total_input_tokens = 0
+    total_cached_tokens = 0
+    total_output_tokens = 0
+
     if not os.path.exists(log_directory):
         print(f"No logs found in the directory: {log_directory}")
-        return total_cost
+        return {
+            "total_cost": total_cost,
+            "total_input_tokens": total_input_tokens,
+            "total_cached_tokens": total_cached_tokens,
+            "total_output_tokens": total_output_tokens,
+        }
 
+    print("Calculating total cost and token usage from log files...\n")
     for log_file in os.listdir(log_directory):
         log_path = os.path.join(log_directory, log_file)
         if os.path.isfile(log_path) and log_file.endswith(".md"):
             try:
-                with open(log_path, "r") as f:
-                    content = f.read()
-                    # 提取总成本行
+                with open(log_path, "rb") as f:
+                    raw_data = f.read()
+                    result = detect(raw_data)
+                    encoding = result['encoding']  # 自动检测文件编码
+                    content = raw_data.decode(encoding)
+
+                    # 提取 Token 和成本信息
                     for line in content.splitlines():
                         if line.startswith("**Cost**: $"):
                             cost_value = float(line.split("$")[1])
+                            print(f"File: {log_file}, Cost: ${cost_value:.6f}")
                             total_cost += cost_value
-                            break
+                        elif line.startswith("- Input Tokens:"):
+                            total_input_tokens += int(line.split(":")[-1].strip())
+                        elif line.startswith("- Cached Tokens:"):
+                            total_cached_tokens += int(line.split(":")[-1].strip())
+                        elif line.startswith("- Output Tokens:"):
+                            total_output_tokens += int(line.split(":")[-1].strip())
+
             except Exception as e:
                 print(f"Error reading file {log_file}: {e}")
 
-    print(f"Total Cost: ${total_cost:.6f}")
-    return total_cost
+    return {
+        "total_cost": total_cost,
+        "total_input_tokens": total_input_tokens,
+        "total_cached_tokens": total_cached_tokens,
+        "total_output_tokens": total_output_tokens,
+    }
+
+
+
+def list_log_files(directory):
+    """列出日志目录中的所有文件。"""
+    return [
+        f for f in os.listdir(directory)
+        if os.path.isfile(os.path.join(directory, f)) and f.endswith(".md")
+    ]
+
+
+def load_chat_history(file_path, token_usage):
+    """如果在名字末尾没有添加上.md那么添加"""
+    if not file_path.endswith(".md"):
+        file_path += ".md"
+
+    """给file_path添加相对路径到程序所在目录下的chat_logs"""
+    file_path = os.path.join(os.path.dirname(__file__), "chat_logs", file_path)
+
+    """加载聊天历史记录。"""
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"File {file_path} does not exist.")
+
+    history = []
+    current_role = None
+    current_content = []
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+
+            # 检测新角色标志
+            if line.startswith("## "):
+                # 保存当前角色的内容
+                if current_role and current_content:
+                    history.append({"role": current_role.lower(), "content": "\n".join(current_content)})
+                # 更新角色
+                current_role = line[3:].strip()  # 去掉 "## "
+                current_content = []
+                continue  # 跳过后续检查，直接进入下一行
+
+            total_token_usage = {"prompt_tokens": 0, "cached_tokens": 0, "completion_tokens": 0}
+            # 检测历史token消耗
+            if line.startswith("- Input Tokens: "):
+                token_usage["prompt_tokens"] += int(line.split(":")[-1].strip())
+                continue
+
+            if line.startswith("- Cached Tokens: "):
+                token_usage["cached_tokens"] += int(line.split(":")[-1].strip())
+                continue
+
+            if line.startswith("- Output Tokens: "):
+                token_usage["completion_tokens"] += int(line.split(":")[-1].strip())
+                continue
+
+            # 跳过统计信息和空行
+            if not line or line.startswith("#") or line.startswith("**") or line.startswith("-"):
+                continue
+
+            # 累积当前角色的内容
+            current_content.append(line)
+
+        # 保存最后一个角色的内容
+        if current_role and current_content:
+            history.append({"role": current_role.lower(), "content": "\n".join(current_content)})
+
+    """删除掉旧的文件"""
+    os.remove(file_path)
+
+    return history
+
