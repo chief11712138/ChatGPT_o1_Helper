@@ -1,7 +1,6 @@
 import os
 import openai
 import sys
-import json
 from datetime import datetime
 from utils import (
     load_config, save_chat_to_markdown, calculate_cost, format_markdown, calculate_total_cost, list_log_files,
@@ -14,6 +13,8 @@ import threading
 import time
 import argparse
 import subprocess
+import traceback
+
 
 os.system('')
 
@@ -157,7 +158,7 @@ class Conversation:
         table.add_row("--open or --o", "Open a new chat session.")
         table.add_row("--sessions or --s", "List all current open sessions.")
         table.add_row("--close or --c", "Close the current session.")
-        table.add_row("--add_key or --ak <api_key>", "Add an OpenAI API key.")
+        table.add_row("--add key or --ak <api_key>", "Add an OpenAI API key.")
 
         # 输出帮助信息
         console.print(Markdown("# User Manual\n"))
@@ -192,6 +193,11 @@ class Conversation:
             exit_event.set()
             with open("exit_flag.txt", "w") as f:
                 f.write("exit")
+
+            # 删除sessions.json文件
+            if os.path.exists("sessions.json"):
+                os.remove("sessions.json")
+
             return True
         elif prompt_lower in ("--exit", "--quit", "--e", "--q"):
             print("Exiting Chat.")
@@ -220,36 +226,47 @@ class Conversation:
             else:
                 print("\n".join(log_files))
             return True
+        elif prompt_lower in ("--open", "--o"):
+            try:
+                if getattr(sys, 'frozen', False):
+                    # 被打包的可执行文件
+                    script_path = sys.executable
+                    command = [script_path]
+                else:
+                    # 未打包，使用 Python 解释器运行脚本
+                    script_path = os.path.abspath(sys.argv[0])
+                    python_executable = sys.executable  # 通常是 'python.exe'
+                    command = [python_executable, script_path]
+                subprocess.Popen(command, creationflags=subprocess.CREATE_NEW_CONSOLE)
+                print("Opened a new conversation in a new window.")
+            except Exception as e:
+                print(f"Failed to open new conversation: {e}")
+                traceback.print_exc()
+            return True
+
         elif prompt_lower in ("--continue", "--cont"):
             try:
                 file_name = prompt.split(" ")[1]
             except IndexError:
                 print("Please provide a file name to continue the conversation.")
                 return True
-            # 在新的控制台窗口中启动程序，并加载指定的聊天记录
             try:
-                script_path = os.path.abspath(sys.argv[0])
-                subprocess.Popen(['cmd', '/c', 'start', '', 'python', script_path, '--continue', file_name])
+                if getattr(sys, 'frozen', False):
+                    # 被打包的可执行文件
+                    script_path = sys.executable
+                    command = [script_path, '--continue', file_name]
+                else:
+                    # 未打包，使用 Python 解释器运行脚本
+                    script_path = os.path.abspath(sys.argv[0])
+                    python_executable = sys.executable  # 通常是 'python.exe'
+                    command = [python_executable, script_path, '--continue', file_name]
+                subprocess.Popen(command, creationflags=subprocess.CREATE_NEW_CONSOLE)
                 print(f"Continuing conversation from {file_name} in a new window.")
             except Exception as e:
                 print(f"Failed to continue conversation: {e}")
+                traceback.print_exc()
             return True
-        elif prompt_lower in ("--open", "--o"):
-            # 在新的控制台窗口中启动程序
-            try:
-                script_path = os.path.abspath(sys.argv[0])
-                if os.name == 'nt':  # Windows
-                    subprocess.Popen(['cmd', '/c', 'start', '', 'python', script_path])
-                elif os.name == 'posix':
-                    if sys.platform == 'darwin':  # macOS
-                        subprocess.Popen(['open', '-a', 'Terminal.app', 'python', script_path])
-                    else:  # Linux
-                        subprocess.Popen(['gnome-terminal', '--', 'python', script_path])
-                print("Opened a new conversation in a new window.")
-            except Exception as e:
-                print(f"Failed to open new conversation: {e}")
-            return True
-        elif prompt_lower in ("--add_key", "--ak"):
+        elif prompt_lower in ("--add key", "--ak"):
             try:
                 api_key = prompt.split(" ")[1]
                 self.bot.config["api_key"] = api_key
@@ -454,9 +471,6 @@ def main():
 
 
 if __name__ == "__main__":
-    # 删除sessions.json文件
-    if os.path.exists("sessions.json"):
-        os.remove("sessions.json")
     try:
         main()
     except Exception as e:
