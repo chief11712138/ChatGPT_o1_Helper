@@ -437,6 +437,15 @@ def main():
     bot = ChatGPT()
 
     try:
+        if getattr(sys, 'frozen', False):
+            # 程序被打包
+            application_path = os.path.dirname(sys.executable)
+        else:
+            # 未打包，直接使用脚本路径
+            application_path = os.path.dirname(os.path.abspath(__file__))
+        if not os.path.exists(application_path + "\\" + "sessions.json"):
+            with open(application_path + "\\" + "sessions.json", "w") as f:
+                f.write("[]")
         parser = argparse.ArgumentParser(description='ChatGPT CLI')
         parser.add_argument('--continue', '--cont', dest='continue_file',
                             help='Continue a previous chat session from a file')
@@ -474,7 +483,7 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"An error occurred: {e}\n")
     finally:
         print("Please do not close the program directly.")
         print("Exiting ChatGPT CLI...")

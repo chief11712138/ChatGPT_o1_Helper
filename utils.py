@@ -239,13 +239,19 @@ def add_session_to_file(session_name, status):
 
 def remove_session_from_file(session_name):
     with sessions_file_lock:
-        if not os.path.exists(SESSIONS_FILE):
+        if getattr(sys, 'frozen', False):
+            # 程序被打包
+            application_path = os.path.dirname(sys.executable)
+        else:
+            # 未打包，直接使用脚本路径
+            application_path = os.path.dirname(os.path.abspath(__file__))
+        session_path = application_path + "\\" + SESSIONS_FILE
+        if not os.path.exists(session_path):
             return
-        with open(SESSIONS_FILE, 'r') as f:
+        with open(session_path, 'r') as f:
             sessions = json.load(f)
-        print(session_name)
         sessions = [s for s in sessions if s['session_name'] != session_name]
-        with open(SESSIONS_FILE, 'w') as f:
+        with open(session_path, 'w') as f:
             json.dump(sessions, f)
 
 def get_all_sessions_from_file():
