@@ -164,12 +164,12 @@ def main():
                 markdown_output += "## Type your message and press Enter to chat with the AI.\n"
                 markdown_output += "---\n"
                 markdown_output += "## Commands:\n"
-                markdown_output += "--exit or --quit or --e or --q  \tEnd the chat.\n\n"
-                markdown_output += "--current usage or --cu         \tView token usage for current session.\n\n"
-                markdown_output += "--total usage or --tu           \tView token usage for all recorded sessions\n\n"
-                markdown_output += "--list or --ls or --history -- h\tList all chat history files.\n\n"
-                markdown_output += "--continue or --c \<filename\>  \tContinue a previous chat session.\n\n"
-                markdown_output += "--open or --o \<filename\>      \tOpen a specific chat history file.\n\n"
+                markdown_output += "--exit or --quit or --e or --q   \tEnd the chat.\n\n"
+                markdown_output += "--current usage or --cu          \tView token usage for current session.\n\n"
+                markdown_output += "--total usage or --tu            \tView token usage for all recorded sessions\n\n"
+                markdown_output += "--list or --ls or --history -- h \tList all chat history files.\n\n"
+                markdown_output += "--continue or --c \<filename\>   \tContinue a previous chat session.\n\n"
+                markdown_output += "--open or --o \<filename\>       \tOpen a specific chat history file.\n\n"
                 markdown_output += "---"
 
                 console.print(Markdown(markdown_output))
