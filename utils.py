@@ -2,7 +2,10 @@ import os
 import json
 from datetime import datetime
 from charset_normalizer import detect
+import threading
 
+SESSIONS_FILE = 'sessions.json'
+sessions_file_lock = threading.Lock()
 
 def load_config(file_path="config.json"):
     """加载配置文件。"""
@@ -206,4 +209,40 @@ def load_chat_history(file_path, token_usage):
     os.remove(file_path)
 
     return history
+
+def add_session_to_file(session_name, status):
+    with sessions_file_lock:
+        if os.path.exists(SESSIONS_FILE):
+            with open(SESSIONS_FILE, 'r') as f:
+                sessions = json.load(f)
+        else:
+            sessions = []
+        # 检查会话是否已经存在
+        for session in sessions:
+            if session['session_name'] == session_name:
+                session['status'] = status
+                break
+        else:
+            # 新的会话
+            sessions.append({'session_name': session_name, 'status': status})
+        with open(SESSIONS_FILE, 'w') as f:
+            json.dump(sessions, f)
+
+def remove_session_from_file(session_name):
+    with sessions_file_lock:
+        if not os.path.exists(SESSIONS_FILE):
+            return
+        with open(SESSIONS_FILE, 'r') as f:
+            sessions = json.load(f)
+        sessions = [s for s in sessions if s['session_name'] != session_name]
+        with open(SESSIONS_FILE, 'w') as f:
+            json.dump(sessions, f)
+
+def get_all_sessions_from_file():
+    with sessions_file_lock:
+        if not os.path.exists(SESSIONS_FILE):
+            return []
+        with open(SESSIONS_FILE, 'r') as f:
+            sessions = json.load(f)
+        return sessions
 
