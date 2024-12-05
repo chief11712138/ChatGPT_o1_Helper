@@ -15,6 +15,8 @@ import time
 import argparse
 import subprocess
 
+os.system('')
+
 exit_event = threading.Event()  # 创建全局退出事件
 console = Console(width=100)
 conversations = []
@@ -155,6 +157,7 @@ class Conversation:
         table.add_row("--open or --o", "Open a new chat session.")
         table.add_row("--sessions or --s", "List all current open sessions.")
         table.add_row("--close or --c", "Close the current session.")
+        table.add_row("--add_key or --ak <api_key>", "Add an OpenAI API key.")
 
         # 输出帮助信息
         console.print(Markdown("# User Manual\n"))
@@ -245,6 +248,15 @@ class Conversation:
                 print("Opened a new conversation in a new window.")
             except Exception as e:
                 print(f"Failed to open new conversation: {e}")
+            return True
+        elif prompt_lower in ("--add_key", "--ak"):
+            try:
+                api_key = prompt.split(" ")[1]
+                self.bot.config["api_key"] = api_key
+                openai.api_key = api_key
+                print("API key updated successfully.")
+            except IndexError:
+                print("Please provide an API key to add.")
             return True
         elif prompt_lower.startswith(("-",)) and prompt.__len__() <= 20:
             print("Unknown command. Type --help to see available commands.")
