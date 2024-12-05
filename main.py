@@ -71,7 +71,8 @@ class Conversation:
                 break
             try:
                 if not self.waiting_for_response:
-                    prompt = input("\033[31mYou: \033[0m")
+                    print("\033[31mYou: \033[0m", end="")
+                    prompt = input("")
                     if self.handle_commands(prompt):
                         continue
                     with self.lock:
@@ -161,18 +162,22 @@ class Conversation:
         console.print(Markdown("## Type your message and press Enter to chat with the AI.\n"))
         console.print(Markdown("---\n"))
         console.print(Markdown("## Commands:\n"))
+        console.print(Markdown("- Any sentence started with \"--\" or \"-\" "
+                               "and the length less than 20 chars, will be considered as a command \n"))
         console.print(table)
         console.print(Markdown("---\n"))
 
     def handle_commands(self, prompt):
         prompt_lower = prompt.lower()
-        if prompt_lower.startswith(("--help", "--h")):
+        # 获取第一个空格前的任何内容
+        prompt_lower = prompt_lower.split(" ")[0]
+        if prompt_lower in ("--help", "--h"):
             self.print_help()
             return True
-        elif prompt_lower.startswith(("--sessions", "--s")):
+        elif prompt_lower in ("--sessions", "--s"):
             self.list_current_sessions()
             return True
-        elif prompt_lower.startswith(("--close", "--c")):
+        elif prompt_lower in ("--close", "--c"):
             print("Closing all conversations...")
             # 关闭所有会话
             with conversations_lock:
@@ -186,20 +191,19 @@ class Conversation:
             with open("exit_flag.txt", "w") as f:
                 f.write("exit")
             return True
-        elif prompt_lower.startswith(("--exit", "--quit", "--e", "--q")):
+        elif prompt_lower in ("--exit", "--quit", "--e", "--q"):
             print("Exiting Chat.")
             # 设置全局退出事件，通知所有会话退出
             exit_event.set()
-            # 删除文件sessions.json
-            if os.path.exists("sessions.json"):
-                os.remove("sessions.json")
+            # 修改session.json文件内容，以删除当前会话
+            remove_session_from_file(self.session_name)
             return True
-        elif prompt_lower.startswith(("--current usage", "--cu")):
+        elif prompt_lower in ("--current usage", "--cu"):
             print(f"Token Usage: {self.total_token_usage}")
             print(
                 f"Current Session Total Cost: ${calculate_cost(self.total_token_usage, self.bot.config['pricing']):.6f}")
             return True
-        elif prompt_lower.startswith(("--total usage", "--tu")):
+        elif prompt_lower in ("--total usage", "--tu"):
             total_stats = calculate_total_cost(self.bot.config["output_directory"])
             print("\nSummary of All Logs:")
             print(f"- Total Input Tokens: {total_stats['total_input_tokens']}")
@@ -207,14 +211,14 @@ class Conversation:
             print(f"- Total Output Tokens: {total_stats['total_output_tokens']}")
             print(f"- Total Cost: ${total_stats['total_cost']:.6f}")
             return True
-        elif prompt_lower.startswith(("--list", "--ls", "--history", "--h")):
+        elif prompt_lower in ("--list", "--ls", "--history", "--h"):
             log_files = list_log_files(self.bot.config["output_directory"])
             if not log_files:
                 print('No history in "chat_logs" folder')
             else:
                 print("\n".join(log_files))
             return True
-        elif prompt_lower.startswith(("--continue", "--cont")):
+        elif prompt_lower in ("--continue", "--cont"):
             try:
                 file_name = prompt.split(" ")[1]
             except IndexError:
@@ -223,18 +227,12 @@ class Conversation:
             # 在新的控制台窗口中启动程序，并加载指定的聊天记录
             try:
                 script_path = os.path.abspath(sys.argv[0])
-                if os.name == 'nt':  # Windows
-                    subprocess.Popen(['cmd', '/c', 'start', '', 'python', script_path, '--continue', file_name])
-                elif os.name == 'posix':
-                    if sys.platform == 'darwin':  # macOS
-                        subprocess.Popen(['open', '-a', 'Terminal.app', 'python', script_path, '--continue', file_name])
-                    else:  # Linux
-                        subprocess.Popen(['gnome-terminal', '--', 'python', script_path, '--continue', file_name])
+                subprocess.Popen(['cmd', '/c', 'start', '', 'python', script_path, '--continue', file_name])
                 print(f"Continuing conversation from {file_name} in a new window.")
             except Exception as e:
                 print(f"Failed to continue conversation: {e}")
             return True
-        elif prompt_lower.startswith(("--open", "--o")):
+        elif prompt_lower in ("--open", "--o"):
             # 在新的控制台窗口中启动程序
             try:
                 script_path = os.path.abspath(sys.argv[0])
@@ -249,10 +247,10 @@ class Conversation:
             except Exception as e:
                 print(f"Failed to open new conversation: {e}")
             return True
-        elif prompt_lower.startswith(("-",)) and prompt.__len__() <= 10:
+        elif prompt_lower.startswith(("-",)) and prompt.__len__() <= 20:
             print("Unknown command. Type --help to see available commands.")
             return True
-        elif prompt_lower.startswith(("-",)) and prompt.__len__() <= 10:
+        elif prompt_lower.startswith(("-",)) and prompt.__len__() <= 20:
             print("Unknown command. Type --help to see available commands.")
             return True
         return False
@@ -264,10 +262,8 @@ class Conversation:
             return
         print("\nCurrent Open Conversations:")
         for idx, session in enumerate(sessions):
-            status = session['status']
             session_name = session['session_name']
             print(f"{idx + 1}. Session Name: {session_name}")
-            print(f"   Status: {status}")
         print("")
 
     def get_token_usage_and_cost(self):
@@ -437,10 +433,6 @@ def main():
         if os.path.exists("exit_flag.txt"):
             os.remove("exit_flag.txt")
 
-        # 删除sessions.json文件
-        if os.path.exists("sessions.json"):
-            os.remove("sessions.json")
-
         print("All sessions have been closed. Exiting program.")
         sys.exit(0)
 
@@ -451,4 +443,15 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # 删除sessions.json文件
+    if os.path.exists("sessions.json"):
+        os.remove("sessions.json")
+    try:
+        main()
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    finally:
+        print("Please do not close the program directly.")
+        print("Exiting ChatGPT CLI...")
+        time.sleep(4)
+        sys.exit(0)

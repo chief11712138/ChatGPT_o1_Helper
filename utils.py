@@ -156,7 +156,7 @@ def load_chat_history(file_path, token_usage):
         file_path += ".md"
 
     """给file_path添加相对路径到程序所在目录下的chat_logs"""
-    file_path = os.path.join(os.path.dirname(__file__), "chat_logs", file_path)
+    file_path = os.path.join(os.path.dirname(__file__), "", file_path)
 
     """加载聊天历史记录。"""
     if not os.path.exists(file_path):
@@ -234,6 +234,7 @@ def remove_session_from_file(session_name):
             return
         with open(SESSIONS_FILE, 'r') as f:
             sessions = json.load(f)
+        print(session_name)
         sessions = [s for s in sessions if s['session_name'] != session_name]
         with open(SESSIONS_FILE, 'w') as f:
             json.dump(sessions, f)
