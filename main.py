@@ -76,7 +76,10 @@ class Conversation:
                 if not self.waiting_for_response:
                     print("\033[31mYou: \033[0m", end="")
                     prompt = input("")
-                    if self.handle_commands(prompt):
+                    result = self.handle_commands(prompt)
+                    if isinstance(result, str):
+                        prompt = result
+                    elif result:
                         continue
                     with self.lock:
                         self.prompt_queue.append(prompt)
@@ -159,6 +162,7 @@ class Conversation:
         table.add_row("--sessions or --s", "List all current open sessions.")
         table.add_row("--close or --c", "Close the current session.")
         table.add_row("--add key or --ak <api_key>", "Add an OpenAI API key.")
+        table.add_row("--read or --r <filename>", "Read a command file. Requires a full path.")
 
         # 输出帮助信息
         console.print(Markdown("# User Manual\n"))
@@ -274,6 +278,19 @@ class Conversation:
                 print("API key updated successfully.")
             except IndexError:
                 print("Please provide an API key to add.")
+            return True
+        elif prompt_lower in ("--read", "--r"):
+            try:
+                file_name = prompt.split(" ")[1]
+                content = ""
+                with open(file_name, "r") as f:
+                    for line in f:
+                        content += line
+                return content
+            except IndexError:
+                print("Please provide a file name to read.")
+            except FileNotFoundError:
+                print(f"File {file_name} not found.")
             return True
         elif prompt_lower.startswith(("-",)) and prompt.__len__() <= 20:
             print("Unknown command. Type --help to see available commands.")
