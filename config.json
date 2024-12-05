@@ -1,7 +1,6 @@
 {
-  "api_key": "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",
+  "api_key": "your_api_key",
   "model": "o1-preview-2024-09-12",
-  "modelx": "gpt-3.5-turbo-0125",
   "output_directory": "chat_logs",
   "pricing": [0.000015, 0.0000075, 0.00006]
 }
