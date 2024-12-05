@@ -1,2 +1,5 @@
 *.zip
 chat_logs/**
+chat_logs/
+build/**
+build/

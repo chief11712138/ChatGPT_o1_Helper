@@ -17,3 +17,4 @@ This project will save you time to build the basic ChatGPT `o1-preview` model
     * First number for input token
     * Second number for output token
     * Since `o1-perview` have additional token which is `cached_token`, so we keep **3** number.
+* **Please remember to close the software by command**

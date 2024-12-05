@@ -109,7 +109,6 @@ class Conversation:
         self.waiting_for_response = False  # 停止加载指示器
         loading_thread.join()  # 等待加载指示器线程结束
         print("\n")  # 确保输出位置正确
-
         if response is not None:
             console.print(Markdown(f"# AI Response\n{response}"))
         else:
