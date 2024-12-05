@@ -164,10 +164,14 @@ def load_chat_history(file_path, token_usage):
     if not file_path.endswith(".md"):
         file_path += ".md"
 
-    """给file_path添加相对路径到程序所在目录下的chat_logs"""
-    file_path = os.path.join(os.path.dirname(__file__), "", file_path)
-
     """加载聊天历史记录。"""
+    if getattr(sys, 'frozen', False):
+        # 程序被打包
+        application_path = os.path.dirname(sys.executable)
+    else:
+        # 未打包，直接使用脚本路径
+        application_path = os.path.dirname(os.path.abspath(__file__))
+    file_path = application_path + "\\" + file_path
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"File {file_path} does not exist.")
 
