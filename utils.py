@@ -4,7 +4,9 @@ from datetime import datetime
 from charset_normalizer import detect
 import threading
 
-SESSIONS_FILE = 'sessions.json'
+# 获取程序所在目录的绝对路径
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SESSIONS_FILE = os.path.join(BASE_DIR, 'sessions.json')
 sessions_file_lock = threading.Lock()
 
 def load_config(file_path="config.json"):
