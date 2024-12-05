@@ -64,6 +64,11 @@ class Conversation:
 
     def user_input_loop(self):
         while not self.exit_event.is_set() and not exit_event.is_set():
+            # 检查退出标志文件
+            if os.path.exists("exit_flag.txt"):
+                print("Exit flag detected. Closing conversation.")
+                self.close()
+                break
             try:
                 if not self.waiting_for_response:
                     prompt = input("\033[31mYou: \033[0m")
@@ -78,21 +83,25 @@ class Conversation:
                 else:
                     self.response_ready.wait(timeout=1)
             except EOFError:
-                break  # 输入流关闭，退出循环
+                break
             except Exception as e:
                 print(f"Input error: {e}")
                 break
-        # 线程结束前的清理工作
-        # 如果需要，您可以在这里添加任何清理代码
 
     def gpt_reply_loop(self):
         if self.exit_event.is_set() or exit_event.is_set():
             return
+            # 检查退出标志文件
+        if os.path.exists("exit_flag.txt"):
+            print("Exit flag detected in GPT thread. Closing conversation.")
+            self.close()
+            return
         with self.lock:
             if not self.prompt_queue:
-                return  # 队列为空，防止 IndexError
+                return
             prompt = self.prompt_queue.pop(0)
         self.waiting_for_response = True
+
         loading_thread = threading.Thread(target=self.loading_indicator, daemon=True)
         loading_thread.start()
         response, token_usage = self.bot.chat(prompt)
@@ -125,7 +134,7 @@ class Conversation:
                 if not self.waiting_for_response or self.exit_event.is_set():
                     break
                 print(f"\rWaiting for GPT response... {char}", end="", flush=True)
-                time.sleep(0.1)
+                time.sleep(0.5)
             # 清除行
         print("\r" + " " * 50 + "\r", end="", flush=True)
 
@@ -174,6 +183,8 @@ class Conversation:
                     conversations.remove(conv)
             # 设置全局退出事件，通知主线程退出
             exit_event.set()
+            with open("exit_flag.txt", "w") as f:
+                f.write("exit")
             return True
         elif prompt_lower.startswith(("--exit", "--quit", "--e", "--q")):
             print("Exiting Chat.")
@@ -418,7 +429,18 @@ def main():
         conv.start()
         while not exit_event.is_set():
             time.sleep(1)
-        # 程序退出时，所有会话已经被关闭，无需再次关闭
+            # 检查退出标志文件
+            if os.path.exists("exit_flag.txt"):
+                exit_event.set()
+            # 程序退出时，所有会话已经被关闭，无需再次关闭
+            # 删除退出标志文件
+        if os.path.exists("exit_flag.txt"):
+            os.remove("exit_flag.txt")
+
+        # 删除sessions.json文件
+        if os.path.exists("sessions.json"):
+            os.remove("sessions.json")
+
         print("All sessions have been closed. Exiting program.")
         sys.exit(0)
 
