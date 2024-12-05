@@ -3,10 +3,10 @@ import json
 from datetime import datetime
 from charset_normalizer import detect
 import threading
+import sys
 
 # 获取程序所在目录的绝对路径
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SESSIONS_FILE = os.path.join(BASE_DIR, 'sessions.json')
+SESSIONS_FILE = "sessions.json"
 sessions_file_lock = threading.Lock()
 
 def load_config(file_path="config.json"):
@@ -92,7 +92,14 @@ def calculate_total_cost(log_directory="chat_logs"):
         dict: 包含总成本和 Token 消耗统计的字典。
     """
     # 确保 log_directory 是程序所在目录下的子文件夹
-    log_directory = os.path.join(os.path.dirname(__file__), log_directory)
+    application_path = ""
+    if not getattr(sys, 'frozen', False):
+        # 未打包，直接使用脚本路径
+        application_path = os.path.dirname(os.path.abspath(__file__))
+    else:
+        # 程序被打包
+        application_path = os.path.dirname(sys.executable)
+    log_directory = application_path +"\\" + log_directory
 
     total_cost = 0.0
     total_input_tokens = 0
