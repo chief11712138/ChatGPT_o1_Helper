@@ -164,12 +164,12 @@ def main():
                 markdown_output += "## Type your message and press Enter to chat with the AI.\n"
                 markdown_output += "---\n"
                 markdown_output += "## Commands:\n"
-                markdown_output += "--exit or --quit or --e or --q\tEnd the chat.\n\n"
-                markdown_output += "--current usage or --cu       \tView token usage for current session.\n\n"
-                markdown_output += "--total usage or --tu         \tView token usage for all recorded sessions\n\n"
-                markdown_output += "--list or --ls                \tList all chat history files.\n\n"
-                markdown_output += "--continue or --c \<filename\>\tContinue a previous chat session.\n\n"
-                markdown_output += "--open or --o \<filename\>    \tOpen a specific chat history file.\n\n"
+                markdown_output += "--exit or --quit or --e or --q  \tEnd the chat.\n\n"
+                markdown_output += "--current usage or --cu         \tView token usage for current session.\n\n"
+                markdown_output += "--total usage or --tu           \tView token usage for all recorded sessions\n\n"
+                markdown_output += "--list or --ls or --history -- h\tList all chat history files.\n\n"
+                markdown_output += "--continue or --c \<filename\>  \tContinue a previous chat session.\n\n"
+                markdown_output += "--open or --o \<filename\>      \tOpen a specific chat history file.\n\n"
                 markdown_output += "---"
 
                 console.print(Markdown(markdown_output))
@@ -195,7 +195,7 @@ def main():
                 print(f"- Total Cost: ${total_stats['total_cost']:.6f}")
                 continue
 
-            elif prompt_lower.startswith(("--list", "--ls")):
+            elif prompt_lower.startswith(("--list", "--ls", "--history", "--h")):
                 log_files = list_log_files(bot.config["output_directory"])
                 if not log_files:
                     print("No history in \"chat_log\" folder")
