@@ -14,6 +14,7 @@ import time
 import argparse
 import subprocess
 import traceback
+import tiktoken
 
 
 os.system('')
@@ -337,6 +338,52 @@ class ChatGPT:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
+        # 基于模型加载对应的编码器（tiktoken）
+        # 不同模型的编码器可能不同，这里以GPT-3.5/GPT-4为例（请根据实际模型进行调整）
+        # 对于 gpt-3.5-turbo 和 gpt-4 使用以下编码器:
+        self.encoding = tiktoken.encoding_for_model(self.model)
+
+    def estimate_tokens(self, messages):
+        """
+        估算消息列表中总token数量。
+        """
+        tokens = 0
+        for msg in messages:
+            # role和content都要计数
+            # 官方参考方法：https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
+            tokens += 4  # 每条消息额外的tokens（参考官方计数方法）
+            tokens += len(self.encoding.encode(msg.get("content", "")))
+        tokens += 2  # 对于对话结束的tokens（参考官方计数方法）
+        return tokens
+
+    def trim_messages(self, max_context_tokens=4000, reserve_space=1000):
+        """
+        在请求前裁剪消息，确保不会超过模型的token限制。
+        max_context_tokens：模型最大context长度（根据使用的模型不同而有所不同），比如gpt-3.5-turbo大约4096。
+        reserve_space：为当前用户输入和AI回答预留一定tokens空间，避免过于接近上限。
+        """
+        # 首先估算当前messages的tokens
+        total_tokens = self.estimate_tokens(self.messages)
+        # 如果tokens过多，则从前往后移除旧的用户+assistant消息对，直到tokens低于限制
+        # 保留最后的用户输入和system消息(如果有)尽量不删。
+        while total_tokens > (max_context_tokens - reserve_space) and len(self.messages) > 2:
+            # 通常第一个消息是system，尝试先移除最早的非system消息
+            # 一般对话格式：[system, user, assistant, user, assistant, ...]
+            # 这里从第一条非system开始删
+            # 找到第一条不是system的消息进行删除（一般是user）
+            remove_index = None
+            for i, m in enumerate(self.messages):
+                if m["role"] not in ("system",):
+                    remove_index = i
+                    break
+            if remove_index is not None and remove_index < len(self.messages):
+                self.messages.pop(remove_index)
+            else:
+                # 如果全是system或无法删，则退出
+                break
+            # 重新计算tokens
+            total_tokens = self.estimate_tokens(self.messages)
+
     def generate_log_file_name(self):
         """生成基于会话开始时间的日志文件名。"""
         timestamp = self.session_start_time.strftime("%Y%m%d_%H%M%S")
@@ -408,10 +455,15 @@ class ChatGPT:
 
     def chat(self, prompt):
         """发送用户输入并获取 AI 响应，同时记录日志。"""
-        # 用户输入后立即记录日志
+        # 用户输入
         user_message = {"role": "user", "content": prompt}
         self.messages.append(user_message)
         self.append_to_log(new_message=user_message)
+
+        # 在请求前对self.messages进行裁剪
+        # 假设使用gpt-3.5-turbo，最大长度为4096。实际请根据使用的模型进行调整。
+        # 为安全起见，给出一些余量，比如max_context_tokens=4096, reserve_space=1000
+        self.trim_messages(max_context_tokens=self.config["max_tokens"], reserve_space=self.config["reserve_space"])
 
         try:
             # GPT 响应
@@ -427,13 +479,10 @@ class ChatGPT:
                 "total_tokens": usage.total_tokens
             }
 
-            # GPT 回答后立即记录日志
+            # GPT 回答
             assistant_message = {"role": "assistant", "content": content}
             self.messages.append(assistant_message)
             self.append_to_log(token_usage=token_usage, new_message=assistant_message)
-
-            # 附加聊天记录
-            self.messages.append({"role": "assistant", "content": content})
 
             return content, token_usage
 

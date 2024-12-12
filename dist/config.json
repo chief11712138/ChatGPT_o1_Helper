@@ -1,6 +1,8 @@
 {
   "api_key": "your_api_key",
-  "model": "o1-preview",
+  "model": "o1-preview-2024-09-12",
   "output_directory": "chat_logs",
-  "pricing": [0.000015, 0.0000075, 0.00006]
+  "pricing": [0.000015, 0.0000075, 0.00006],
+  "max_tokens": 30000,
+  "reserve_space": 20000
 }
