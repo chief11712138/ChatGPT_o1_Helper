@@ -320,6 +320,9 @@ class ChatGPT:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
+        # 限制保留的历史消息数量，默认值从配置读取
+        self.max_messages = self.config.get("max_messages", 20)
+
     def generate_log_file_name(self):
         """生成基于会话开始时间的日志文件名。"""
         timestamp = self.session_start_time.strftime("%Y%m%d_%H%M%S")
@@ -383,17 +386,25 @@ class ChatGPT:
         except Exception as e:
             print(f"Error writing log: {e}")
 
+    def trim_history(self):
+        """确保聊天记录数量不会超过设定的最大值。"""
+        if self.max_messages and len(self.messages) > self.max_messages:
+            excess = len(self.messages) - self.max_messages
+            self.messages = self.messages[excess:]
+
     def load_history(self, file_name, token_usage):
         """加载指定的聊天历史。"""
         file_path = os.path.join(self.config["output_directory"], file_name)
         history = load_chat_history(file_path, token_usage)
         self.messages = history
+        self.trim_history()
 
     def chat(self, prompt):
         """发送用户输入并获取 AI 响应，同时记录日志。"""
         # 用户输入后立即记录日志
         user_message = {"role": "user", "content": prompt}
         self.messages.append(user_message)
+        self.trim_history()
         self.append_to_log(new_message=user_message)
 
         try:
@@ -413,10 +424,8 @@ class ChatGPT:
             # GPT 回答后立即记录日志
             assistant_message = {"role": "assistant", "content": content}
             self.messages.append(assistant_message)
+            self.trim_history()
             self.append_to_log(token_usage=token_usage, new_message=assistant_message)
-
-            # 附加聊天记录
-            self.messages.append({"role": "assistant", "content": content})
 
             return content, token_usage
 
