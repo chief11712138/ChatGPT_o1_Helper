@@ -415,9 +415,6 @@ class ChatGPT:
             self.messages.append(assistant_message)
             self.append_to_log(token_usage=token_usage, new_message=assistant_message)
 
-            # 附加聊天记录
-            self.messages.append({"role": "assistant", "content": content})
-
             return content, token_usage
 
         except Exception as e:
